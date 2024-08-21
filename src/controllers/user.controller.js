@@ -29,14 +29,14 @@ const registerUser = asyncHandler( async (req, res) => {
     console.log(req.files);
     // return res.status(200).json("returned from middle")
     const avatarLocalPath = req.files?.avatar[0]?.path; //req.files is added by multer
-    // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
     if(!avatarLocalPath)
         return res.status(409).json("Avatar is needed.")
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-    // const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
     if(!avatar)
         return res.status(409).json("Avatar is not uploaded.")
@@ -47,7 +47,7 @@ const registerUser = asyncHandler( async (req, res) => {
         fullname : fullname,
         avatar : avatar.url,
         password : password,
-        // coverImage : coverImage?.url || "",
+        coverImage : coverImage?.url || "",
     })
 
     const createdUser = await User.findById(user._id).select(
