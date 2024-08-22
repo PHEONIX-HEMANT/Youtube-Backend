@@ -2,6 +2,22 @@ import asyncHandler from "../utilities/asyncHandler.js";
 import { User } from "../models/user.model.js"
 import uploadOnCloudinary from "../utilities/cloudinary.utility.js";
 
+const generateAccessAndRefreshToken = async (userId)=>{
+    try{
+        const user = await User.findById(userId);
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken;
+        await user.save({ValidateBeforeSave : false}); //we dont want mongoose to kick in and verify while schema
+        
+        return {accessToken, refreshToken};
+
+    }catch(error){
+        res.status(500).json("Error while generating tokens")
+    }
+}
+
 const registerUser = asyncHandler( async (req, res) => {
     //get user details from frontend
     //validation - not empty
@@ -59,4 +75,82 @@ const registerUser = asyncHandler( async (req, res) => {
     return res.status(200).json({createdUser})
 });
 
-export default registerUser;
+const loginUser = asyncHandler( async (req, res) => {
+    //get email, username, password
+    //if user does not exist, ask him to register
+    //check the password
+    //access and refresh token generate
+    //send tokens in secure cookie
+    //user is logged in
+
+    const {username, email, password} = req.body;
+
+    if(!username && !email){
+        res.status(400).json("Enter username or email")
+    }
+
+    if(!password){
+        res.status(400).json("Password is required")
+    }
+
+    const user = await User.findOne({$or : [{username}, {email}]});
+    if(!user){
+        res.status(400).json("You dont have any account, Register Please");
+    }
+
+    let passwordCheck = await user.isPasswordCorrect(password)
+    if(!passwordCheck){
+        res.status(400).json("Password is wrong")
+    }
+
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id);
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    const options = {
+        httpOnly : true,
+        secure : true //now only server can modify cookies
+    }
+
+    return res.status(200).cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        {
+            user : loggedInUser,
+            accessToken,
+            refreshToken,
+            message : "User logged in successfully."
+        }
+    )
+})
+
+const logoutUser = asyncHandler( async (req, res) => {
+    //clear cookies
+    //remove refreshtoken from his db
+    const user = User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set : {refreshToken : undefined}
+        },
+        {
+            new : true
+        }
+    )
+
+    const options = {
+        httpOnly : true,
+        secure : true //now only server can modify cookies
+    }
+
+    return res.status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json("User Logged Out Successfully")
+    
+})
+
+export {
+    registerUser, 
+    loginUser,
+    logoutUser
+}
