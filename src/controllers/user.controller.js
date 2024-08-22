@@ -188,9 +188,100 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
     }
 
 })
+
+const changeCurrentPassword = asyncHandler( async (req, res) => {
+
+    const newPassword = req.body.newPassword
+    if(!newPassword){
+        return res.status(400).json({message : "New Password is Required"})
+    }
+
+    const user = req.user; //we have used auth middleware, that will verify the tokens and put user in req.user
+
+    user.password = newPassword;
+    await user.save({ValidateBeforeSave : false})
+
+    return res.status(200).json({message : "Password changed Successfully"})
+})
+
+const updateAccountDetails = asyncHandler (async (req, res) => {
+    const {fullname, email} = req.body;
+    if(!fullname && !email){
+        return res.status(400).json({message : "At least modify one field"})
+    }
+
+    await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : {
+                fullname : fullname || req.user.fullname,
+                email : email || req.user.email
+            }
+        },
+        {new : true}
+    ).select("-password -refreshToken")
+
+    return res.status(200).json({message : "Account details Updated successfully"})
+})
+
+const updateAvatar = asyncHandler( async (req, res) =>{
+    const newAvatarLocalPath = req.file?.path
+    if(!newAvatarLocalPath){
+        return res.status(400).json({message : "Avatar is required"})
+    }
+    
+    
+    const newAvatar = await uploadOnCloudinary(newAvatarLocalPath)
+    
+    await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : {
+                avatar : newAvatar.url
+            }
+        },
+        {new : true}
+    ).select("-password -refreshToken")
+
+    return res.status(200).json({message : "Avatar Updated successfully"})
+})
+
+const updateCoverImage = asyncHandler( async (req, res) =>{
+    const newCoverImageLocalPath = req.file?.path
+    if(!newCoverImageLocalPath){
+        return res.status(400).json({message : "Cover Image is required"})
+    }
+    
+    
+    const newCoverImage = await uploadOnCloudinary(newCoverImageLocalPath)
+    
+    await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : {
+                coverImage : newCoverImage.url
+            }
+        },
+        {new : true}
+    ).select("-password -refreshToken")
+
+    return res.status(200).json({message : "Cover Image Updated successfully"})
+})
+
+const getCurrentUser = asyncHandler (async (req, res) =>{
+    if(!req.user){
+        return res.status(400).json({message : "Bad request"})
+    }
+    return res.status(200).json({user : req.user})
+})
 export {
     registerUser, 
     loginUser,
     logoutUser,
-    refreshAccessToken
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateAvatar,
+    updateCoverImage
 }
