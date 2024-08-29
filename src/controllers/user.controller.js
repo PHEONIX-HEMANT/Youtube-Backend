@@ -1,6 +1,6 @@
 import asyncHandler from "../utilities/asyncHandler.js";
 import { User } from "../models/user.model.js"
-import uploadOnCloudinary from "../utilities/cloudinary.utility.js";
+import { deleteOnCloudinary, uploadOnCloudinary } from "../utilities/cloudinary.utility.js";
 import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId)=>{
@@ -232,6 +232,8 @@ const updateAvatar = asyncHandler( async (req, res) =>{
     
     
     const newAvatar = await uploadOnCloudinary(newAvatarLocalPath)
+    //delete old image
+    await deleteOnCloudinary(res.user.avatar);
     
     await User.findByIdAndUpdate(
         req.user?._id,
